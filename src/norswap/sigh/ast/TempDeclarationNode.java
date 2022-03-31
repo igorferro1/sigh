@@ -7,15 +7,21 @@ import java.util.List;
 public class TempDeclarationNode extends DeclarationNode {
     public final String name;
     public final List<TempTypeNode> temp_types;
-    // public final TypeNode returnType;
-    // public final BlockNode block;
+    public final List<ParameterNode> parameters;
+    public final TypeNode returnType;
+    public final BlockNode block;
 
     @SuppressWarnings("unchecked")
-    public TempDeclarationNode(Span span, Object temp_types, Object function) {
+    public TempDeclarationNode(Span span, Object temp_types, Object name, Object parameters, Object returnType,
+            Object block) {
         super(span);
         this.temp_types = Util.cast(temp_types, List.class);
-        this.name = Util.cast(function, GenericFunDeclarationNode.class).name();
-        ;
+        this.name = Util.cast(name, String.class);
+        this.parameters = Util.cast(parameters, List.class);
+        this.returnType = returnType == null
+                ? new SimpleTypeNode(new Span(span.start, span.start), "Void")
+                : Util.cast(returnType, TypeNode.class);
+        this.block = Util.cast(block, BlockNode.class);
     }
 
     @Override
@@ -25,7 +31,7 @@ public class TempDeclarationNode extends DeclarationNode {
 
     @Override
     public String contents() {
-        return "template " + name; // TODO: Adjust this
+        return "template " + returnType; // TODO: Adjust this
     }
 
     @Override

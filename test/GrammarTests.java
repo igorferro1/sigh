@@ -3,6 +3,8 @@ import norswap.autumn.AutumnTestFixture;
 import norswap.autumn.Grammar;
 import norswap.sigh.SighGrammar;
 import norswap.sigh.ast.*;
+import norswap.sigh.types.TempType;
+
 import org.testng.annotations.Test;
 
 import bsh.org.objectweb.asm.Type;
@@ -119,15 +121,24 @@ public class GrammarTests extends AutumnTestFixture {
                                                 new SimpleTypeNode(null, "Int"),
                                                 new BlockNode(null, asList(new ReturnNode(null, intlit(1))))));
 
-                successExpect("template <T: Type> fun f (x: T): T { return 1 }",
+                successExpect("template <T: Type> funtemp f (x: T): T { return 1 }",
                                 new TempDeclarationNode(null,
                                                 asList(new TempTypeNode(null, "T", new SimpleTypeNode(null, "Type"))),
-                                                new GenericFunDeclarationNode(null, "f",
-                                                                asList(new ParameterNode(null, "x",
-                                                                                new SimpleTypeNode(null, "Int"))),
-                                                                new SimpleTypeNode(null, "Int"),
-                                                                new BlockNode(null, asList(
-                                                                                new ReturnNode(null, intlit(1)))))));
+                                                "f",
+                                                asList(new ParameterNode(null, "x", new SimpleTypeNode(null, "Int"))),
+                                                new SimpleTypeNode(null, "T"),
+                                                new BlockNode(null, asList(new ReturnNode(null, intlit(1))))));
+
+                // successExpect("template <T: Type> fun f (x: T): T { return 1 }",
+                // new TempDeclarationNode(null,
+                // asList(new TempTypeNode(null, "T", new SimpleTypeNode(null, "Type"))),
+                // "f",
+                // asList(new ParameterNode(null, "x",
+                // new SimpleTypeNode(null, "Int"))),
+                // new SimpleTypeNode(null, "T"),
+                // new BlockNode(null, asList(
+                // new ReturnNode(null, intlit(1))))));
+                // check why it's giving an error
 
                 successExpect("var x: Int = f<Int>(3)", new VarDeclarationNode(null,
                                 "x", new SimpleTypeNode(null, "Int"),

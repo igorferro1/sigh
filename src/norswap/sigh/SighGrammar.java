@@ -54,7 +54,7 @@ public class SighGrammar extends Grammar {
         public rule _var = reserved("var");
         public rule _fun = reserved("fun");
         public rule _temp = reserved("template");
-        // public rule _tpname = reserved("typename");
+        public rule _funtemp = reserved("funtemp");
         public rule _struct = reserved("struct");
         public rule _if = reserved("if");
         public rule _else = reserved("else");
@@ -194,7 +194,8 @@ public class SighGrammar extends Grammar {
                                 return true;
                         });
 
-        public rule array_type = left_expression()
+        public rule array_type = left_expression() // Int
+                                                   // Int[]
                         .left(simple_type)
                         .suffix(seq(LSQUARE, RSQUARE),
                                         $ -> new ArrayTypeNode($.span(), $.$[0]));
@@ -238,12 +239,18 @@ public class SighGrammar extends Grammar {
         public rule fun_decl = seq(_fun, identifier, LPAREN, parameters, RPAREN, maybe_return_type, block)
                         .push($ -> new FunDeclarationNode($.span(), $.$[0], $.$[1], $.$[2], $.$[3]));
 
-        public rule generic_fun_decl = seq(_fun, identifier, LPAREN, parameters, RPAREN, maybe_return_type, block)
-                        .push($ -> new GenericFunDeclarationNode($.span(), $.$[0], $.$[1], $.$[2], $.$[3]));
+        // public rule generic_fun_decl = seq(_fun, identifier, LPAREN, parameters,
+        // RPAREN, maybe_return_type, block)
+        // .push($ -> new GenericFunDeclarationNode($.span(), $.$[0], $.$[1], $.$[2],
+        // $.$[3]));
 
-        public rule temp_decl = seq(_temp, LANGLE, temp_types, RANGLE, generic_fun_decl)
-                        .push($ -> new TempDeclarationNode($.span(), $.$[0], $.$[1])); // template <T: Type> or
-                                                                                       // template <>
+        public rule temp_decl = seq(_temp, LANGLE, temp_types, RANGLE, _funtemp, identifier, LPAREN,
+                        parameters, RPAREN, maybe_return_type, block)
+                        .push($ -> new TempDeclarationNode($.span(), $.$[0], $.$[1], $.$[2], $.$[3], $.$[4]));
+
+        // template <T:Type>
+        // or
+        // template <>
 
         public rule field_decl = seq(_var, identifier, COLON, type)
                         .push($ -> new FieldDeclarationNode($.span(), $.$[0], $.$[1]));
