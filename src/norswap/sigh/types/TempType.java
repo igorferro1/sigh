@@ -4,10 +4,26 @@ import norswap.utils.NArrays;
 import java.util.Arrays;
 
 public final class TempType extends Type {
-    public final Type[] passedTpsTypes;
 
-    public TempType(Type... passedTpsTypes) {
-        this.passedTpsTypes = passedTpsTypes;
+    public final Type[] passedTpsTypes;
+    public final Type returnType;
+    public final Type[] paramsTypes;
+    public final int typesQtt;
+
+    public TempType(Type returnType, int typesQtt, Type... passedTpsAndParamTypes) {
+        this.returnType = returnType;
+        this.typesQtt = typesQtt;
+        this.passedTpsTypes = new Type[typesQtt];
+        this.paramsTypes = new Type[passedTpsAndParamTypes.length - typesQtt];
+
+        for (int i = 0; i < typesQtt; ++i) {
+            System.out.print(passedTpsAndParamTypes[i]);
+            this.passedTpsTypes[i] = passedTpsAndParamTypes[i];
+        }
+
+        for (int i = 0; i < (passedTpsAndParamTypes.length - typesQtt); ++i) {
+            this.paramsTypes[i] = passedTpsAndParamTypes[i + typesQtt];
+        }
     }
 
     @Override

@@ -41,21 +41,21 @@ public final class InterpreterTests extends TestFixture {
 
     // ---------------------------------------------------------------------------------------------
 
-    private void check (String input, Object expectedReturn) {
+    private void check(String input, Object expectedReturn) {
         assertNotNull(rule, "You forgot to initialize the rule field.");
         check(rule, input, expectedReturn, null);
     }
 
     // ---------------------------------------------------------------------------------------------
 
-    private void check (String input, Object expectedReturn, String expectedOutput) {
+    private void check(String input, Object expectedReturn, String expectedOutput) {
         assertNotNull(rule, "You forgot to initialize the rule field.");
         check(rule, input, expectedReturn, expectedOutput);
     }
 
     // ---------------------------------------------------------------------------------------------
 
-    private void check (rule rule, String input, Object expectedReturn, String expectedOutput) {
+    private void check(rule rule, String input, Object expectedReturn, String expectedOutput) {
         // TODO
         // (1) write proper parsing tests
         // (2) write some kind of automated runner, and use it here
@@ -73,48 +73,49 @@ public final class InterpreterTests extends TestFixture {
 
         if (!errors.isEmpty()) {
             LineMapString map = new LineMapString("<test>", input);
-            String report = reactor.reportErrors(it ->
-                it.toString() + " (" + ((SighNode) it).span.startString(map) + ")");
-            //            String tree = AttributeTreeFormatter.format(root, reactor,
-            //                    new ReflectiveFieldWalker<>(SighNode.class, PRE_VISIT, POST_VISIT));
-            //            System.err.println(tree);
+            String report = reactor
+                    .reportErrors(it -> it.toString() + " (" + ((SighNode) it).span.startString(map) + ")");
+            // String tree = AttributeTreeFormatter.format(root, reactor,
+            // new ReflectiveFieldWalker<>(SighNode.class, PRE_VISIT, POST_VISIT));
+            // System.err.println(tree);
             throw new AssertionError(report);
         }
 
         Pair<String, Object> result = IO.captureStdout(() -> interpreter.interpret(root));
         assertEquals(result.b, expectedReturn);
-        if (expectedOutput != null) assertEquals(result.a, expectedOutput);
+        if (expectedOutput != null)
+            assertEquals(result.a, expectedOutput);
     }
 
     // ---------------------------------------------------------------------------------------------
 
-    private void checkExpr (String input, Object expectedReturn, String expectedOutput) {
+    private void checkExpr(String input, Object expectedReturn, String expectedOutput) {
         rule = grammar.root;
         check("return " + input, expectedReturn, expectedOutput);
     }
 
     // ---------------------------------------------------------------------------------------------
 
-    private void checkExpr (String input, Object expectedReturn) {
+    private void checkExpr(String input, Object expectedReturn) {
         rule = grammar.root;
         check("return " + input, expectedReturn);
     }
 
     // ---------------------------------------------------------------------------------------------
 
-    private void checkThrows (String input, Class<? extends Throwable> expected) {
+    private void checkThrows(String input, Class<? extends Throwable> expected) {
         assertThrows(expected, () -> check(input, null));
     }
 
     // ---------------------------------------------------------------------------------------------
 
     @Test
-    public void testLiteralsAndUnary () {
+    public void testLiteralsAndUnary() {
         checkExpr("42", 42L);
         checkExpr("42.0", 42.0d);
         checkExpr("\"hello\"", "hello");
         checkExpr("(42)", 42L);
-        checkExpr("[1, 2, 3]", new Object[]{1L, 2L, 3L});
+        checkExpr("[1, 2, 3]", new Object[] { 1L, 2L, 3L });
         checkExpr("true", true);
         checkExpr("false", false);
         checkExpr("null", Null.INSTANCE);
@@ -126,7 +127,7 @@ public final class InterpreterTests extends TestFixture {
     // ---------------------------------------------------------------------------------------------
 
     @Test
-    public void testNumericBinary () {
+    public void testNumericBinary() {
         checkExpr("1 + 2", 3L);
         checkExpr("2 - 1", 1L);
         checkExpr("2 * 3", 6L);
@@ -165,12 +166,12 @@ public final class InterpreterTests extends TestFixture {
     // ---------------------------------------------------------------------------------------------
 
     @Test
-    public void testOtherBinary () {
-        checkExpr("true  && true",  true);
-        checkExpr("true  || true",  true);
+    public void testOtherBinary() {
+        checkExpr("true  && true", true);
+        checkExpr("true  || true", true);
         checkExpr("true  || false", true);
-        checkExpr("false || true",  true);
-        checkExpr("false && true",  false);
+        checkExpr("false || true", true);
+        checkExpr("false && true", false);
         checkExpr("true  && false", false);
         checkExpr("false && false", false);
         checkExpr("false || false", false);
@@ -201,7 +202,7 @@ public final class InterpreterTests extends TestFixture {
         checkExpr("\"hi\" != \"hi2\"", true);
         checkExpr("[1] != [1]", true);
 
-         // test short circuit
+        // test short circuit
         checkExpr("true || print(\"x\") == \"y\"", true, "");
         checkExpr("false && print(\"x\") == \"y\"", false, "");
     }
@@ -209,7 +210,7 @@ public final class InterpreterTests extends TestFixture {
     // ---------------------------------------------------------------------------------------------
 
     @Test
-    public void testVarDecl () {
+    public void testVarDecl() {
         check("var x: Int = 1; return x", 1L);
         check("var x: Float = 2.0; return x", 2d);
 
@@ -223,7 +224,7 @@ public final class InterpreterTests extends TestFixture {
     // ---------------------------------------------------------------------------------------------
 
     @Test
-    public void testRootAndBlock () {
+    public void testRootAndBlock() {
         rule = grammar.root;
         check("return", null);
         check("return 1", 1L);
@@ -236,29 +237,29 @@ public final class InterpreterTests extends TestFixture {
         check("{ print(\"a\"); print(\"b\") }", null, "a\nb\n");
 
         check(
-            "var x: Int = 1;" +
-            "{ print(\"\" + x); var x: Int = 2; print(\"\" + x) }" +
-            "print(\"\" + x)",
-            null, "1\n2\n1\n");
+                "var x: Int = 1;" +
+                        "{ print(\"\" + x); var x: Int = 2; print(\"\" + x) }" +
+                        "print(\"\" + x)",
+                null, "1\n2\n1\n");
     }
 
     // ---------------------------------------------------------------------------------------------
 
     @Test
-    public void testCalls () {
+    public void testCalls() {
         check(
-            "fun add (a: Int, b: Int): Int { return a + b } " +
-                "return add(4, 7)",
-            11L);
+                "fun add (a: Int, b: Int): Int { return a + b } " +
+                        "return add(4, 7)",
+                11L);
 
         HashMap<String, Object> point = new HashMap<>();
         point.put("x", 1L);
         point.put("y", 2L);
 
         check(
-            "struct Point { var x: Int; var y: Int }" +
-                "return $Point(1, 2)",
-            point);
+                "struct Point { var x: Int; var y: Int }" +
+                        "return $Point(1, 2)",
+                point);
 
         check("var str: String = null; return print(str + 1)", "null1", "null1\n");
     }
@@ -266,13 +267,15 @@ public final class InterpreterTests extends TestFixture {
     // ---------------------------------------------------------------------------------------------
 
     @Test
-    public void testArrayStructAccess () {
+    public void testArrayStructAccess() {
         checkExpr("[1][0]", 1L);
         checkExpr("[1.0][0]", 1d);
         checkExpr("[1, 2][1]", 2L);
 
-        // TODO check that this fails (& maybe improve so that it generates a better message?)
-        // or change to make it legal (introduce a top type, and make it a top type array if thre
+        // TODO check that this fails (& maybe improve so that it generates a better
+        // message?)
+        // or change to make it legal (introduce a top type, and make it a top type
+        // array if thre
         // is no inference context available)
         // checkExpr("[].length", 0L);
         checkExpr("[1].length", 1L);
@@ -283,39 +286,39 @@ public final class InterpreterTests extends TestFixture {
 
         check("var x: Int[] = [0, 1]; x[0] = 3; return x[0]", 3L);
         checkThrows("var x: Int[] = []; x[0] = 3; return x[0]",
-            ArrayIndexOutOfBoundsException.class);
+                ArrayIndexOutOfBoundsException.class);
         checkThrows("var x: Int[] = null; x[0] = 3",
-            NullPointerException.class);
+                NullPointerException.class);
 
         check(
-            "struct P { var x: Int; var y: Int }" +
-                "return $P(1, 2).y",
-            2L);
+                "struct P { var x: Int; var y: Int }" +
+                        "return $P(1, 2).y",
+                2L);
 
         checkThrows(
-            "struct P { var x: Int; var y: Int }" +
-                "var p: P = null;" +
-                "return p.y",
-            NullPointerException.class);
+                "struct P { var x: Int; var y: Int }" +
+                        "var p: P = null;" +
+                        "return p.y",
+                NullPointerException.class);
 
         check(
-            "struct P { var x: Int; var y: Int }" +
-                "var p: P = $P(1, 2);" +
-                "p.y = 42;" +
-                "return p.y",
-            42L);
+                "struct P { var x: Int; var y: Int }" +
+                        "var p: P = $P(1, 2);" +
+                        "p.y = 42;" +
+                        "return p.y",
+                42L);
 
         checkThrows(
-            "struct P { var x: Int; var y: Int }" +
-                "var p: P = null;" +
-                "p.y = 42",
-            NullPointerException.class);
+                "struct P { var x: Int; var y: Int }" +
+                        "var p: P = null;" +
+                        "p.y = 42",
+                NullPointerException.class);
     }
 
     // ---------------------------------------------------------------------------------------------
 
     @Test
-    public void testIfWhile () {
+    public void testIfWhile() {
         check("if (true) return 1 else return 2", 1L);
         check("if (false) return 1 else return 2", 2L);
         check("if (false) return 1 else if (true) return 2 else return 3 ", 2L);
@@ -327,7 +330,7 @@ public final class InterpreterTests extends TestFixture {
     // ---------------------------------------------------------------------------------------------
 
     @Test
-    public void testInference () {
+    public void testInference() {
         check("var array: Int[] = []", null);
         check("var array: String[] = []", null);
         check("fun use_array (array: Int[]) {} ; use_array([])", null);
@@ -336,15 +339,15 @@ public final class InterpreterTests extends TestFixture {
     // ---------------------------------------------------------------------------------------------
 
     @Test
-    public void testTypeAsValues () {
+    public void testTypeAsValues() {
         check("struct S{} ; return \"\"+ S", "S");
         check("struct S{} ; var type: Type = S ; return \"\"+ type", "S");
     }
 
     // ---------------------------------------------------------------------------------------------
 
-    @Test public void testUnconditionalReturn()
-    {
+    @Test
+    public void testUnconditionalReturn() {
         check("fun f(): Int { if (true) return 1 else return 2 } ; return f()", 1L);
     }
 

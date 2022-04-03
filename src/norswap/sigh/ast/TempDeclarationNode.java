@@ -31,7 +31,7 @@ public class TempDeclarationNode extends DeclarationNode {
 
     @Override
     public String contents() {
-        return "template " + returnType; // TODO: Adjust this
+        return "template " + name; // TODO: Adjust this
     }
 
     @Override

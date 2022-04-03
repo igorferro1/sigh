@@ -13,7 +13,9 @@ import norswap.uranium.Rule;
 import norswap.utils.visitors.ReflectiveFieldWalker;
 import norswap.utils.visitors.Walker;
 import java.util.Arrays;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 import java.util.stream.IntStream;
 
@@ -152,7 +154,7 @@ public final class SemanticAnalysis {
         walker.register(UnaryExpressionNode.class, PRE_VISIT, analysis::unaryExpression);
         walker.register(BinaryExpressionNode.class, PRE_VISIT, analysis::binaryExpression);
         walker.register(AssignmentNode.class, PRE_VISIT, analysis::assignment);
-        // walker.register(TempCallNode.class, PRE_VISIT, analysis::tempCall);
+        walker.register(TempCallNode.class, PRE_VISIT, analysis::templateCall);
 
         // types
         walker.register(SimpleTypeNode.class, PRE_VISIT, analysis::simpleType);
@@ -168,12 +170,10 @@ public final class SemanticAnalysis {
         walker.register(FunDeclarationNode.class, PRE_VISIT, analysis::funDecl);
         walker.register(StructDeclarationNode.class, PRE_VISIT, analysis::structDecl);
         walker.register(TempDeclarationNode.class, PRE_VISIT, analysis::templateDecl);
-        walker.register(GenericFunDeclarationNode.class, PRE_VISIT, analysis::genFunDecl);
 
         walker.register(RootNode.class, POST_VISIT, analysis::popScope);
         walker.register(BlockNode.class, POST_VISIT, analysis::popScope);
         walker.register(FunDeclarationNode.class, POST_VISIT, analysis::popScope);
-        walker.register(GenericFunDeclarationNode.class, POST_VISIT, analysis::popScope);
         walker.register(TempDeclarationNode.class, POST_VISIT, analysis::popScope);
 
         // statements
@@ -667,6 +667,8 @@ public final class SemanticAnalysis {
     private static boolean isTypeDecl(DeclarationNode decl) {
         if (decl instanceof StructDeclarationNode)
             return true;
+        if (decl instanceof TempTypeNode)
+            return true;
         if (!(decl instanceof SyntheticDeclarationNode))
             return false;
         SyntheticDeclarationNode synthetic = cast(decl);
@@ -856,7 +858,7 @@ public final class SemanticAnalysis {
         });
 
         forEachIndexed(node.types, (i, types) -> {
-            dependencies[i + node.arguments.size() + 1] = types.attr("type");
+            dependencies[i + node.arguments.size() + 1] = types.attr("value");
             R.set(types, "index", (i + node.arguments.size()));
         });
 
@@ -871,80 +873,94 @@ public final class SemanticAnalysis {
                         return;
                     }
 
-                    FunType funType = cast(maybeTempType);
-                    r.set(0, funType.returnType);
+                    TempType tempType = cast(maybeTempType);
+                    r.set(0, tempType.returnType); // return type will be
 
-                    Type[] params = funType.paramTypes;
+                    Type[] params = tempType.paramsTypes;
                     List<ExpressionNode> args = node.arguments;
+
+                    Type[] expectedTypes = tempType.passedTpsTypes;
+                    List<TypeNode> passedTypes = node.types;
 
                     if (params.length != args.size())
                         r.errorFor(format("wrong number of arguments, expected %d but got %d",
                                 params.length, args.size()),
                                 node);
 
-                    int checkedArgs = Math.min(params.length, args.size());
+                    if (expectedTypes.length != passedTypes.size())
+                        r.errorFor(format("wrong number of types passed, expected %d but got %d",
+                                expectedTypes.length, passedTypes.size()),
+                                node);
 
-                    for (int i = 0; i < checkedArgs; ++i) {
-                        Type argType = r.get(i + 1);
-                        Type paramType = funType.paramTypes[i];
-                        if (!isAssignableTo(argType, paramType))
-                            r.errorFor(format(
-                                    "incompatible argument provided for argument %d: expected %s but got %s",
-                                    i, paramType, argType),
-                                    node.arguments.get(i));
-                    }
+                    Map<String, String> typesMap = new HashMap<>();
+
+                    /**
+                     * int checkedArgs = Math.min(params.length, args.size());
+                     * 
+                     * for (int i = 0; i < checkedArgs; ++i) {
+                     * Type argType = r.get(i + 1);
+                     * Type paramType = funType.paramTypes[i];
+                     * if (!isAssignableTo(argType, paramType))
+                     * r.errorFor(format(
+                     * "incompatible argument provided for argument %d: expected %s but got %s",
+                     * i, paramType, argType),
+                     * node.arguments.get(i));
+                     * }
+                     */
+
+                    int checkedTypes = Math.min(params.length, args.size());
+
+                    // for (int i = 0; i < checkedTypes; ++i) {
+                    // typesMap.put()
+                    // }
+                    // Check types of arguments: runtime maybe?
+                    // Idea: Try to associate types to the general "T", and check the types if the
+                    // arguments are for that T
+
+                    // I don't need to check if the passed types are really types because it's
+                    // already done at SimpleType
                 });
 
     }
 
-    /**
-     * FIRST: CHECK IF I'M PASSING TYPES FOR THE TEMPLATE AND THEN CHECK IF
-     * PARAMETERS ARE THE RIGHT TYPES AS WELL
-     **/
-
     private void templateDeclTypes(TempTypeNode node) {
-        R.set(node, "scope", scope);
-        scope.declare(node.name, node); // scope pushed by TempDeclarationNode
+        // I think this is right. We are declaring the type "T" as a new instance of
+        // type, and we'll associate the value of it to the passed (not in this phase, I
+        // think it'll be in the interpreter)
 
-        R.rule(node, "type")
-                .using(node.type, "value")
-                .by(Rule::copyFirst);
+        // R.set(node, "scope", scope);
+        // scope.declare(node.name, node); // scope pushed by TempDeclarationNode
+
+        // R.rule(node, "type")
+        // .using(node.type, "value")
+        // .by(Rule::copyFirst);
+
+        // Old code up
+
+        scope.declare(node.name, node);
+        R.set(node, "type", TypeType.INSTANCE);
+        R.set(node, "declared", new TempTypeType(node));
+
     }
 
     private void templateDecl(TempDeclarationNode node) {
         scope.declare(node.name, node);
         scope = new Scope(node, scope);
-        R.set(node, "scope", scope); // declare a scope for template types
+        R.set(node, "scope", scope); // declare a scope for template types and function parameters
 
-        Attribute[] dependencies = new Attribute[node.temp_types.size()];
-        forEachIndexed(node.temp_types, (i, param) -> dependencies[i] = param.attr("type"));
-
-        R.rule(node, "type")
-                .using(dependencies)
-                .by(r -> {
-                    Type[] passedTpsTypes = new Type[node.temp_types.size()];
-                    for (int i = 0; i < passedTpsTypes.length; ++i)
-                        passedTpsTypes[i] = r.get(i);
-                    r.set(0, new TempType(passedTpsTypes));
-                });
-    }
-
-    private void genFunDecl(GenericFunDeclarationNode node) {
-        scope.declare(node.name, node);
-        scope = new Scope(node, scope);
-        R.set(node, "scope", scope); // declare a scope for parameters
-
-        Attribute[] dependencies = new Attribute[node.parameters.size() + 1];
+        Attribute[] dependencies = new Attribute[node.temp_types.size() + node.parameters.size() + 1];
         dependencies[0] = node.returnType.attr("value");
-        forEachIndexed(node.parameters, (i, param) -> dependencies[i + 1] = param.attr("type"));
+        forEachIndexed(node.temp_types, (i, param) -> dependencies[i + 1] = param.attr("type"));
+        forEachIndexed(node.parameters,
+                (i, param) -> dependencies[i + node.temp_types.size() + 1] = param.attr("type"));
 
         R.rule(node, "type")
                 .using(dependencies)
                 .by(r -> {
-                    Type[] paramTypes = new Type[node.parameters.size()];
-                    for (int i = 0; i < paramTypes.length; ++i)
-                        paramTypes[i] = r.get(i + 1);
-                    r.set(0, new FunType(r.get(0), paramTypes));
+                    Type[] passedTpsAndParamsTypes = new Type[node.temp_types.size() + node.parameters.size()];
+                    for (int i = 0; i < passedTpsAndParamsTypes.length; ++i)
+                        passedTpsAndParamsTypes[i] = r.get(i + 1);
+                    r.set(0, new TempType(r.get(0), node.temp_types.size(), passedTpsAndParamsTypes));
                 });
 
         R.rule()
@@ -957,6 +973,37 @@ public final class SemanticAnalysis {
                     // NOTE: The returned value presence & type is checked in returnStmt().
                 });
     }
+
+    // private void genFunDecl(GenericFunDeclarationNode node) {
+    // scope.declare(node.name, node);
+    // scope = new Scope(node, scope);
+    // R.set(node, "scope", scope); // declare a scope for parameters
+
+    // Attribute[] dependencies = new Attribute[node.parameters.size() + 1];
+    // dependencies[0] = node.returnType.attr("value");
+    // forEachIndexed(node.parameters, (i, param) -> dependencies[i + 1] =
+    // param.attr("type"));
+
+    // R.rule(node, "type")
+    // .using(dependencies)
+    // .by(r -> {
+    // Type[] paramTypes = new Type[node.parameters.size()];
+    // for (int i = 0; i < paramTypes.length; ++i)
+    // paramTypes[i] = r.get(i + 1);
+    // r.set(0, new FunType(r.get(0), paramTypes));
+    // });
+
+    // R.rule()
+    // .using(node.block.attr("returns"), node.returnType.attr("value"))
+    // .by(r -> {
+    // boolean returns = r.get(0);
+    // Type returnType = r.get(1);
+    // if (!returns && !(returnType instanceof VoidType))
+    // r.error("Missing return in function.", node);
+    // // NOTE: The returned value presence & type is checked in returnStmt().
+    // });
+    // }
+    // Not needed anymore, since we don't have anymore the genfundecl
 
     // endregion
     // =============================================================================================

@@ -433,7 +433,8 @@ public final class Interpreter {
 
         FunDeclarationNode funDecl = (FunDeclarationNode) decl;
         coIterate(args, funDecl.parameters,
-                (arg, param) -> storage.set(scope, param.name, arg));
+                (arg, param) -> storage.set(scope, param.name, arg)); // se fizer isso com os tipos, jogando os valores,
+                                                                      // será que funciona??
 
         try {
             get(funDecl.block);
@@ -538,4 +539,43 @@ public final class Interpreter {
     }
 
     // ---------------------------------------------------------------------------------------------
+
+    // TEMPLATES: NEW FEATURE
+
+    private Object tempCall(TempCallNode node) {
+        Object decl = get(node.template);
+        node.arguments.forEach(this::run);
+        node.types.forEach(this::run);
+
+        Object[] args = map(node.arguments, new Object[0], visitor);
+        Object[] types = map(node.types, new Object[0], visitor);
+
+        if (decl == Null.INSTANCE)
+            throw new PassthroughException(new NullPointerException("calling a null function"));
+
+        if (decl instanceof SyntheticDeclarationNode)
+            return builtin(((SyntheticDeclarationNode) decl).name(), args);
+
+        if (decl instanceof Constructor)
+            return buildStruct(((Constructor) decl).declaration, args);
+
+        ScopeStorage oldStorage = storage;
+        Scope scope = reactor.get(decl, "scope");
+        storage = new ScopeStorage(scope, storage);
+
+        FunDeclarationNode funDecl = (FunDeclarationNode) decl;
+        coIterate(args, funDecl.parameters,
+                (arg, param) -> storage.set(scope, param.name, arg)); // se fizer isso com os tipos, jogando os valores,
+                                                                      // será que funciona??
+
+        try {
+            get(funDecl.block);
+        } catch (Return r) {
+            return r.value;
+        } finally {
+            storage = oldStorage;
+        }
+        return null;
+    }
+
 }

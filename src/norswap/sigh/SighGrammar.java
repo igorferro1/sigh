@@ -54,7 +54,6 @@ public class SighGrammar extends Grammar {
         public rule _var = reserved("var");
         public rule _fun = reserved("fun");
         public rule _temp = reserved("template");
-        public rule _funtemp = reserved("funtemp");
         public rule _struct = reserved("struct");
         public rule _if = reserved("if");
         public rule _else = reserved("else");
@@ -244,7 +243,7 @@ public class SighGrammar extends Grammar {
         // .push($ -> new GenericFunDeclarationNode($.span(), $.$[0], $.$[1], $.$[2],
         // $.$[3]));
 
-        public rule temp_decl = seq(_temp, LANGLE, temp_types, RANGLE, _funtemp, identifier, LPAREN,
+        public rule temp_decl = seq(_temp, LANGLE, temp_types, RANGLE, _fun, identifier, LPAREN,
                         parameters, RPAREN, maybe_return_type, block)
                         .push($ -> new TempDeclarationNode($.span(), $.$[0], $.$[1], $.$[2], $.$[3], $.$[4]));
 

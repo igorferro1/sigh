@@ -7,8 +7,6 @@ import norswap.sigh.types.TempType;
 
 import org.testng.annotations.Test;
 
-import bsh.org.objectweb.asm.Type;
-
 import static java.util.Arrays.asList;
 import static norswap.sigh.ast.BinaryOperator.*;
 
@@ -121,11 +119,11 @@ public class GrammarTests extends AutumnTestFixture {
                                                 new SimpleTypeNode(null, "Int"),
                                                 new BlockNode(null, asList(new ReturnNode(null, intlit(1))))));
 
-                successExpect("template <T: Type> funtemp f (x: T): T { return 1 }",
+                successExpect("template <T: Type> fun f (x: T): T { return 1 }",
                                 new TempDeclarationNode(null,
                                                 asList(new TempTypeNode(null, "T", new SimpleTypeNode(null, "Type"))),
                                                 "f",
-                                                asList(new ParameterNode(null, "x", new SimpleTypeNode(null, "Int"))),
+                                                asList(new ParameterNode(null, "x", new SimpleTypeNode(null, "T"))),
                                                 new SimpleTypeNode(null, "T"),
                                                 new BlockNode(null, asList(new ReturnNode(null, intlit(1))))));
 
