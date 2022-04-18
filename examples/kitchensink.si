@@ -60,12 +60,16 @@ validate5(sum_pair($Pair(2, 3)))
 
 fun use_array (array: Int[]) {}
 
-
-template <T: Type> fun asdasd (a: T, b: T): T { 
-    var c: T = a + b
-    return c } 
-
-var intArray: Int[] = [1, 2]
+var intArray: Int[] = [99, 21]
 var intArray2: Int[] = [3, 4]
+var floatArray: Float[] = [99.9, 21]
+var resultArray1: Int[] = intArray + intArray2
+var resultArray2: Int[] = intArray - intArray2
+var resultArray3: Int[] = intArray * intArray2
+var resultArray4: Float[] = floatArray / intArray2
+print("" + resultArray1)
+print("" + resultArray2)
+print("" + resultArray3)
+print("" + resultArray4)
 var stringArray: String[] = []
 use_array([])

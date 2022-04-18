@@ -41,10 +41,7 @@ import static norswap.utils.visitors.WalkVisitType.PRE_VISIT;
  * attribute to an
  * instance of {@link Type} which is the type of the value declared (note that
  * for struct
- * declaration, this is always {@link TypeType}.</li> // TEMPLATES WILL ALSO
- * HAVE TYPETYPE AS THE FIRST "PARAMETER" (WHAT GOES INSIDE <>)
- * // BUT TEMPLATES WILL HAVE A TEMPLATETYPE THAT I'LL CREATE LATER (UNS 18 MIN
- * DO VIDEO 1)
+ * declaration, this is always {@link TypeType}.</li>
  *
  * <li>Additionally, {@link StructDeclarationNode} (and default
  * {@link SyntheticDeclarationNode} for types) must have their {@code declared}
@@ -541,7 +538,26 @@ public final class SemanticAnalysis {
     // ---------------------------------------------------------------------------------------------
 
     private void binaryArithmetic(Rule r, BinaryExpressionNode node, Type left, Type right) {
-        if (left instanceof IntType)
+        if (left instanceof ArrayType && right instanceof ArrayType) { // If its an Array, then check what kind of array
+                                                                       // it is
+            ArrayType leftArray = cast(left);
+            ArrayType rightArray = cast(right);
+            if (leftArray.componentType instanceof IntType)
+                if (rightArray.componentType instanceof IntType)
+                    r.set(0, new ArrayType(IntType.INSTANCE));
+                else if (rightArray.componentType instanceof FloatType)
+                    r.set(0, new ArrayType(FloatType.INSTANCE));
+                else
+                    r.error(arithmeticError(node, "Int", right), node);
+            else if (leftArray.componentType instanceof FloatType)
+                if (rightArray.componentType instanceof IntType || rightArray.componentType instanceof FloatType)
+                    r.set(0, new ArrayType(FloatType.INSTANCE));
+                else
+                    r.error(arithmeticError(node, "Float", right), node);
+            else
+                r.error(arithmeticError(node, left, right), node);
+
+        } else if (left instanceof IntType)
             if (right instanceof IntType)
                 r.set(0, IntType.INSTANCE);
             else if (right instanceof FloatType)

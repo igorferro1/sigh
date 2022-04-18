@@ -7,6 +7,7 @@ import norswap.sigh.scopes.Scope;
 import norswap.sigh.scopes.SyntheticDeclarationNode;
 import norswap.sigh.types.FloatType;
 import norswap.sigh.types.IntType;
+import norswap.sigh.types.ArrayType;
 import norswap.sigh.types.StringType;
 import norswap.sigh.types.Type;
 import norswap.uranium.Reactor;
@@ -184,6 +185,34 @@ public final class Interpreter {
 
         boolean floating = leftType instanceof FloatType || rightType instanceof FloatType;
         boolean numeric = floating || leftType instanceof IntType;
+        boolean array = leftType instanceof ArrayType && rightType instanceof ArrayType;
+
+        if (array && (node.operator == BinaryOperator.ADD || node.operator == BinaryOperator.SUBTRACT
+                || node.operator == BinaryOperator.MULTIPLY || node.operator == BinaryOperator.DIVIDE)) {
+            ArrayType convertedLeftType = cast(leftType);
+            ArrayType convertedRightType = cast(rightType);
+
+            boolean floatingArray = convertedLeftType.componentType instanceof FloatType
+                    || convertedRightType.componentType instanceof FloatType;
+            boolean numericArray = floatingArray || convertedLeftType.componentType instanceof IntType;
+
+            Object[] arrayLeft = get(node.left);
+            Object[] arrayRight = get(node.right);
+
+            int sizeMax = Math.max(arrayLeft.length, arrayRight.length);
+            Object[] result = new Object[sizeMax];
+            if (numericArray) {
+                try {
+                    for (int i = 0; i < sizeMax; ++i) {
+                        result[i] = numericOp(node, floatingArray, (Number) arrayLeft[i], (Number) arrayRight[i]);
+                    }
+                    return result;
+                } catch (ArrayIndexOutOfBoundsException e) {
+                    throw new PassthroughException(e);
+                }
+            }
+
+        }
 
         if (numeric)
             return numericOp(node, floating, (Number) left, (Number) right);

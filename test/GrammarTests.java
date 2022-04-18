@@ -127,17 +127,6 @@ public class GrammarTests extends AutumnTestFixture {
                                                 new SimpleTypeNode(null, "T"),
                                                 new BlockNode(null, asList(new ReturnNode(null, intlit(1))))));
 
-                // successExpect("template <T: Type> fun f (x: T): T { return 1 }",
-                // new TempDeclarationNode(null,
-                // asList(new TempTypeNode(null, "T", new SimpleTypeNode(null, "Type"))),
-                // "f",
-                // asList(new ParameterNode(null, "x",
-                // new SimpleTypeNode(null, "Int"))),
-                // new SimpleTypeNode(null, "T"),
-                // new BlockNode(null, asList(
-                // new ReturnNode(null, intlit(1))))));
-                // check why it's giving an error
-
                 successExpect("var x: Int = f<Int>(3)", new VarDeclarationNode(null,
                                 "x", new SimpleTypeNode(null, "Int"),
                                 new TempCallNode(null, new ReferenceNode(null, "f"),

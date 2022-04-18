@@ -156,6 +156,11 @@ public final class SemanticAnalysisTests extends UraniumTestFixture {
 
                 successInput("return \"hi\" != \"hi\"");
                 successInput("return [1] != [1]");
+
+                successInput("var x: Int[] = [1, 2]; var y: Int[] = [3, 4]; return x+y");
+                successInput("var x: Int[] = [1, 2]; var y: Int[] = [3, 4]; return x-y");
+                successInput("var x: Int[] = [1, 2]; var y: Int[] = [3, 4]; return x*y");
+                successInput("var x: Int[] = [1, 2]; var y: Int[] = [3, 4]; return x/y");
         }
 
         // ---------------------------------------------------------------------------------------------

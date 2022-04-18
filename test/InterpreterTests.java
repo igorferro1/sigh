@@ -161,6 +161,10 @@ public final class InterpreterTests extends TestFixture {
         checkExpr("3.0 % 2", 1.0d);
 
         checkExpr("2 * (4-1) * 4.0 / 6 % (2+1)", 1.0d);
+        checkExpr("[1, 2] + [3, 4]", new Object[] { 4L, 6L });
+        checkExpr("[1.5, 2] + [3, 4]", new Object[] { 4.5d, 6.0d });
+        checkExpr("[1, 2] - [3, 4]", new Object[] { -2L, -2L });
+
     }
 
     // ---------------------------------------------------------------------------------------------
