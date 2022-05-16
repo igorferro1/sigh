@@ -104,6 +104,10 @@ public class SighGrammar extends Grammar {
         public rule array = seq(LSQUARE, expressions, RSQUARE) // [0]
                         .push($ -> new ArrayLiteralNode($.span(), $.$[0]));
 
+        public rule set = seq(LBRACE, expressions, RBRACE)
+                        .push($ -> new SetLiteralNode($.span(), $.$[0]));
+        // Initialization of set, being with elements or not.
+
         public rule basic_expression = choice(
                         constructor,
                         reference,
@@ -111,7 +115,8 @@ public class SighGrammar extends Grammar {
                         integer,
                         string,
                         paren_expression,
-                        array);
+                        array,
+                        set);
 
         public rule function_args = seq(LPAREN, expressions, RPAREN);
 
@@ -197,9 +202,14 @@ public class SighGrammar extends Grammar {
                                                    // Int[]
                         .left(simple_type)
                         .suffix(seq(LSQUARE, RSQUARE),
-                                        $ -> new ArrayTypeNode($.span(), $.$[0]));
+                                        $ -> new ArrayTypeNode($.span(), $.$[0]))
+                        .suffix(seq(LBRACE, RBRACE),
+                                        $ -> new SetTypeNode($.span(), $.$[0]));;
 
-        public rule type = seq(array_type); // Int
+        // public rule set_type = left_expression()
+        // .left(simple_type)
+
+        public rule type = seq(array_type); // Int, Int[] or Int{}
 
         public rule statement = lazy(() -> choice(
                         this.block,

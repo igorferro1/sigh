@@ -39,6 +39,7 @@ public class GrammarTests extends AutumnTestFixture {
                 successExpect("\"hello\"", new StringLiteralNode(null, "hello"));
                 successExpect("(42)", new ParenthesizedNode(null, intlit(42)));
                 successExpect("[1, 2, 3]", new ArrayLiteralNode(null, asList(intlit(1), intlit(2), intlit(3))));
+                successExpect("{1, 2, 3}", new SetLiteralNode(null, asList(intlit(1), intlit(2), intlit(3))));
                 successExpect("true", new ReferenceNode(null, "true"));
                 successExpect("false", new ReferenceNode(null, "false"));
                 successExpect("null", new ReferenceNode(null, "null"));
@@ -106,6 +107,10 @@ public class GrammarTests extends AutumnTestFixture {
                 successExpect("var x: Int = 1", new VarDeclarationNode(null,
                                 "x", new SimpleTypeNode(null, "Int"), intlit(1)));
 
+                successExpect("var x: Int{} = {1, 2, 3}", new VarDeclarationNode(null,
+                                "x", new SetTypeNode(null, new SimpleTypeNode(null, "Int")),
+                                new SetLiteralNode(null, asList(intlit(1), intlit(2), intlit(3)))));
+
                 successExpect("struct P {}", new StructDeclarationNode(null, "P", asList()));
 
                 successExpect("struct P { var x: Int; var y: Int }",
@@ -142,6 +147,15 @@ public class GrammarTests extends AutumnTestFixture {
 
                 successExpect("return", new ReturnNode(null, null));
                 successExpect("return 1", new ReturnNode(null, intlit(1)));
+                successExpect("print(1)", new ExpressionStatementNode(null,
+                                new FunCallNode(null, new ReferenceNode(null, "print"), asList(intlit(1)))));
+                successExpect("addSetInt({2, 3}, 1)", new ExpressionStatementNode(null,
+                                new FunCallNode(null, new ReferenceNode(null, "addSetInt"), asList(
+                                                new SetLiteralNode(null, asList(intlit(2), intlit(3))), intlit(1)))));
+                successExpect("containsSetFloat({4.5, 6.2}, 3.4)", new ExpressionStatementNode(null,
+                                new FunCallNode(null, new ReferenceNode(null, "containsSetFloat"), asList(
+                                                new SetLiteralNode(null, asList(floatlit(4.5), floatlit(6.2))),
+                                                floatlit(3.4)))));
                 successExpect("print(1)", new ExpressionStatementNode(null,
                                 new FunCallNode(null, new ReferenceNode(null, "print"), asList(intlit(1)))));
                 successExpect("{ return }", new BlockNode(null, asList(new ReturnNode(null, null))));

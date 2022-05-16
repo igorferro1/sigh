@@ -101,10 +101,24 @@ public final class SemanticAnalysisTests extends UraniumTestFixture {
                 successInput("return 2.0 % 3");
                 successInput("return 3.0 % 2");
 
+                // tests for array programming
+                successInput("var x: Int[] = [1, 2]; var y: Int[] = [3, 4]; return x+y");
+                successInput("var x: Int[] = [1, 2]; var y: Int[] = [3, 4]; return x-y");
+                successInput("var x: Int[] = [1, 2]; var y: Int[] = [3, 4]; return x*y");
+                successInput("var x: Int[] = [1, 2]; var y: Int[] = [3, 4]; return x/y");
+                successInput("var x: Int[] = [1, 2]; var y: Int = 3; return x+y");
+                successInput("var x: Int[] = [1, 2]; var y: Int = 3; return x-y");
+                successInput("var x: Int[] = [1, 2]; var y: Int = 3; return x*y");
+                successInput("var x: Int[] = [1, 2]; var y: Int = 3; return x/y");
+
+                failureInputWith("var x: Int[] = [1, 2]; var y: String[] = []; return x-y",
+                                "Trying to subtract Int with String[]");
+
                 failureInputWith("return 2 + true", "Trying to add Int with Bool");
                 failureInputWith("return true + 2", "Trying to add Bool with Int");
-                failureInputWith("return 2 + [1]", "Trying to add Int with Int[]");
-                failureInputWith("return [1] + 2", "Trying to add Int[] with Int");
+                // failureInputWith("return 2 + [1]", "Trying to add Int with Int[]");
+                // failureInputWith("return [1] + 2", "Trying to add Int[] with Int");
+                // Those inputs are now accepted and return an Int[] of value [3]
         }
 
         // ---------------------------------------------------------------------------------------------
@@ -157,10 +171,6 @@ public final class SemanticAnalysisTests extends UraniumTestFixture {
                 successInput("return \"hi\" != \"hi\"");
                 successInput("return [1] != [1]");
 
-                successInput("var x: Int[] = [1, 2]; var y: Int[] = [3, 4]; return x+y");
-                successInput("var x: Int[] = [1, 2]; var y: Int[] = [3, 4]; return x-y");
-                successInput("var x: Int[] = [1, 2]; var y: Int[] = [3, 4]; return x*y");
-                successInput("var x: Int[] = [1, 2]; var y: Int[] = [3, 4]; return x/y");
         }
 
         // ---------------------------------------------------------------------------------------------
@@ -209,15 +219,15 @@ public final class SemanticAnalysisTests extends UraniumTestFixture {
                                 "fun add (a: Int, b: Int): Int { return a + b } " +
                                                 "return add(4, 7)");
 
-                successInput("template <T: Type> fun add (a: T, b: T): T { return a } ");
+                successInput("template <T: Type> fun add (a: T, b: T): T { return a + b } ");
 
-                successInput("template <T: Type> fun add (a: T, b: T): T { return a } " +
-                                "return add<Float>(2.4, 2.5)");
+                // successInput("template <T: Type> fun add (a: T, b: T): T { return a } " +
+                // "return add<Float>(2.4, 2.5)");
 
                 // successInput("template <T1: Type, T2: Type> fun add (a: T1, b: T2): T1 {
                 // return a } " +
                 // "return add<Float, Int>(2.5, 5)");
-                // Doesn't works
+                // Doesn't work
                 successInput(
                                 "struct Point { var x: Int; var y: Int }" +
                                                 "return $Point(1, 2)");
@@ -249,6 +259,7 @@ public final class SemanticAnalysisTests extends UraniumTestFixture {
                 successInput("var x: Int[] = [0, 1]; x[0] = 3; return x[0]");
                 successInput("var x: Int[] = []; x[0] = 3; return x[0]");
                 successInput("var x: Int[] = null; x[0] = 3");
+                successInput("var x: Int{} = {}; return x");
 
                 successInput(
                                 "struct P { var x: Int; var y: Int }" +
@@ -329,4 +340,27 @@ public final class SemanticAnalysisTests extends UraniumTestFixture {
         }
 
         // ---------------------------------------------------------------------------------------------
+
+        @Test
+        public void testSets() {
+                successInput("var x: Int{} = {1, 5, 4}; return x");
+                successInput("var x: Float{} = {1.0, 5, 4.2}; return x");
+                successInput("var x: String{} = {\"test\", \"5\", \"aaaa\"}; return x");
+
+                successInput("var x: Int{} = {1, 5, 4}; return addSetInt(x, 6)");
+                successInput("var x: Float{} = {1.0, 5, 4.2}; return addSetFloat(x, 6.8)");
+                successInput("var x: String{} = {\"test\", \"5\", \"aaaa\"}; return addSetString(x, \"wow, adding!\")");
+
+                successInput("var x: Int{} = {1, 5, 4}; return containsSetInt(x, 7)");
+                successInput("var x: Float{} = {1.0, 5, 4.2}; return containsSetFloat(x, 6.88)");
+                successInput("var x: String{} = {\"test\", \"5\", \"aaaa\"}; return containsSetString(x, \"wow, containing!\")");
+
+                failureInputWith("var x: String{} = {\"1\", \"5\", 4.2}; return x",
+                                "supertype");
+
+                successInput("var x: Int{} = {}; return addSetInt(x, 7)");
+                successInput("return addSetInt({2, 3}, 7)");
+                failureInput("var x: Int{} = {}; return addSetString(x, \"7\")");
+        }
+
 }

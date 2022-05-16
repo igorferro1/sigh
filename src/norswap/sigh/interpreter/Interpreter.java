@@ -72,6 +72,7 @@ public final class Interpreter {
         visitor.register(ReferenceNode.class, this::reference);
         visitor.register(ConstructorNode.class, this::constructor);
         visitor.register(ArrayLiteralNode.class, this::arrayLiteral);
+        visitor.register(SetLiteralNode.class, this::setLiteral);
         visitor.register(ParenthesizedNode.class, this::parenthesized);
         visitor.register(FieldAccessNode.class, this::fieldAccess);
         visitor.register(ArrayAccessNode.class, this::arrayAccess);
@@ -164,6 +165,15 @@ public final class Interpreter {
 
     // ---------------------------------------------------------------------------------------------
 
+    private Object[] setLiteral(SetLiteralNode node) {
+        Object[] set = map(node.components, new Object[0], visitor);
+        Arrays.sort(set);
+        set = Arrays.stream(set).distinct().toArray();
+        return set;
+    }
+
+    // ---------------------------------------------------------------------------------------------
+
     private Object binaryExpression(BinaryExpressionNode node) {
         Type leftType = reactor.get(node.left, "type");
         Type rightType = reactor.get(node.right, "type");
@@ -185,28 +195,46 @@ public final class Interpreter {
 
         boolean floating = leftType instanceof FloatType || rightType instanceof FloatType;
         boolean numeric = floating || leftType instanceof IntType;
-        boolean array = leftType instanceof ArrayType && rightType instanceof ArrayType;
+        boolean array = leftType instanceof ArrayType; // && rightType instanceof ArrayType;
 
         if (array && (node.operator == BinaryOperator.ADD || node.operator == BinaryOperator.SUBTRACT
                 || node.operator == BinaryOperator.MULTIPLY || node.operator == BinaryOperator.DIVIDE)) {
             ArrayType convertedLeftType = cast(leftType);
-            ArrayType convertedRightType = cast(rightType);
-
-            boolean floatingArray = convertedLeftType.componentType instanceof FloatType
-                    || convertedRightType.componentType instanceof FloatType;
+            // ArrayType convertedRightType = cast(rightType);
+            Object[] arrayLeft = get(node.left);
+            boolean floatingArray = convertedLeftType.componentType instanceof FloatType;
             boolean numericArray = floatingArray || convertedLeftType.componentType instanceof IntType;
 
-            Object[] arrayLeft = get(node.left);
-            Object[] arrayRight = get(node.right);
+            int sizeMax = arrayLeft.length;
+            if (rightType instanceof ArrayType) {
+                ArrayType convertedRightType = cast(rightType);
+                floatingArray = floatingArray
+                        || convertedRightType.componentType instanceof FloatType;
+                numericArray = floatingArray || numericArray;
+                Object[] arrayRight = get(node.right);
+                sizeMax = Math.max(arrayLeft.length, arrayRight.length);
+            }
 
-            int sizeMax = Math.max(arrayLeft.length, arrayRight.length);
+            Number valueRight = 0;
+            if (rightType instanceof FloatType || rightType instanceof IntType) {
+                valueRight = (Number) get(node.right);
+            }
+
             Object[] result = new Object[sizeMax];
             if (numericArray) {
                 try {
-                    for (int i = 0; i < sizeMax; ++i) {
-                        result[i] = numericOp(node, floatingArray, (Number) arrayLeft[i], (Number) arrayRight[i]);
+                    if (rightType instanceof ArrayType) {
+                        Object[] arrayRight = get(node.right);
+                        for (int i = 0; i < sizeMax; ++i) {
+                            result[i] = numericOp(node, floatingArray, (Number) arrayLeft[i], (Number) arrayRight[i]);
+                        }
+                        return result;
+                    } else {
+                        for (int i = 0; i < sizeMax; ++i) {
+                            result[i] = numericOp(node, floatingArray, (Number) arrayLeft[i], valueRight);
+                        }
+                        return result;
                     }
-                    return result;
                 } catch (ArrayIndexOutOfBoundsException e) {
                     throw new PassthroughException(e);
                 }
@@ -478,10 +506,35 @@ public final class Interpreter {
     // ---------------------------------------------------------------------------------------------
 
     private Object builtin(String name, Object[] args) {
-        assert name.equals("print"); // only one at the moment
-        String out = convertToString(args[0]);
-        System.out.println(out);
-        return out;
+        if (name.equals("print")) { // only one at the moment
+            String out = convertToString(args[0]);
+            System.out.println(out);
+            return out;
+        } else if (name.contains("addSet")) {
+            Object[] oldSet = (Object[]) (args[0]);
+            Object newValue = (Object) (args[1]);
+
+            oldSet = Arrays.copyOf(oldSet, oldSet.length + 1); // create new array from old array and allocate one more
+                                                               // element
+            oldSet[oldSet.length - 1] = newValue;
+
+            Arrays.sort(oldSet);
+            oldSet = Arrays.stream(oldSet).distinct().toArray();
+
+            return oldSet;
+        } else if (name.contains("containsSet")) {
+            Object[] set = (Object[]) (args[0]);
+            Object checkElem = (Object) (args[1]);
+
+            for (Object element : set) {
+                if (element.equals(checkElem)) {
+                    return true;
+                }
+            }
+            return false;
+        }
+
+        return null;
     }
 
     // ---------------------------------------------------------------------------------------------

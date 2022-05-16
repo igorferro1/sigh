@@ -161,7 +161,12 @@ public final class InterpreterTests extends TestFixture {
         checkExpr("3.0 % 2", 1.0d);
 
         checkExpr("2 * (4-1) * 4.0 / 6 % (2+1)", 1.0d);
+
+        // tests for array programming
         checkExpr("[1, 2] + [3, 4]", new Object[] { 4L, 6L });
+        checkExpr("[1, 2] - [3, 4]", new Object[] { -2L, -2L });
+        checkExpr("[1, 2] * [3, 4]", new Object[] { 3L, 8L });
+        checkExpr("[47, 9] / [3, 4]", new Object[] { 15L, 2L });
         checkExpr("[1.5, 2] + [3, 4]", new Object[] { 4.5d, 6.0d });
         checkExpr("[1, 2] - [3, 4]", new Object[] { -2L, -2L });
 
@@ -356,6 +361,25 @@ public final class InterpreterTests extends TestFixture {
     }
 
     // ---------------------------------------------------------------------------------------------
+
+    @Test
+    public void testSets() {
+        check("var x: Int{} = {1, 5, 4}; return x", new Object[] { 1L, 4L, 5L });
+        check("var x: Float{} = {1.2, 22.1, 4.4}; return x", new Object[] { 1.2d, 4.4d, 22.1d });
+        check("var x: String{} = {\"test\", \"5\", \"aaaa\"}; return x", new Object[] { "5", "aaaa", "test" });
+
+        check("var x: Int{} = {1, 5, 4}; return addSetInt(x, 3)", new Object[] { 1L, 3L, 4L, 5L });
+        check("var x: Float{} = {1.2, 22.1, 4.4}; return addSetFloat(x, 4.5)",
+                new Object[] { 1.2d, 4.4d, 4.5d, 22.1d });
+        check("var x: String{} = {\"test\", \"5\", \"aaaa\"}; return addSetString(x, \"hello\")",
+                new Object[] { "5", "aaaa", "hello", "test" });
+
+        check("var x: Int{} = {1, 5, 4}; return containsSetInt(x, 7)", false);
+        check("var x: Float{} = {1.0, 22.1, 4.2}; return containsSetFloat(x, 22.1)", true);
+        check("var x: String{} = {\"test\", \"5\", \"aaaa\"}; return containsSetString(x, \"wow, containing!\")",
+                false);
+
+    }
 
     // NOTE(norswap): Not incredibly complete, but should cover the basics.
 }

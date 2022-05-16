@@ -6,10 +6,10 @@ import java.util.List;
 
 public class TempDeclarationNode extends DeclarationNode {
     public final String name;
-    public final List<TempTypeNode> temp_types;
-    public final List<ParameterNode> parameters;
-    public final TypeNode returnType;
-    public final BlockNode block;
+    private final List<TempTypeNode> temp_types;
+    private final List<ParameterNode> parameters;
+    private final TypeNode returnType;
+    private final BlockNode block;
 
     @SuppressWarnings("unchecked")
     public TempDeclarationNode(Span span, Object temp_types, Object name, Object parameters, Object returnType,

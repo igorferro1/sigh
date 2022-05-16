@@ -144,6 +144,7 @@ public final class SemanticAnalysis {
         walker.register(ReferenceNode.class, PRE_VISIT, analysis::reference);
         walker.register(ConstructorNode.class, PRE_VISIT, analysis::constructor);
         walker.register(ArrayLiteralNode.class, PRE_VISIT, analysis::arrayLiteral);
+        walker.register(SetLiteralNode.class, PRE_VISIT, analysis::setLiteral);
         walker.register(ParenthesizedNode.class, PRE_VISIT, analysis::parenthesized);
         walker.register(FieldAccessNode.class, PRE_VISIT, analysis::fieldAccess);
         walker.register(ArrayAccessNode.class, PRE_VISIT, analysis::arrayAccess);
@@ -156,6 +157,7 @@ public final class SemanticAnalysis {
         // types
         walker.register(SimpleTypeNode.class, PRE_VISIT, analysis::simpleType);
         walker.register(ArrayTypeNode.class, PRE_VISIT, analysis::arrayType);
+        walker.register(SetTypeNode.class, PRE_VISIT, analysis::setType);
         walker.register(TempTypeNode.class, PRE_VISIT, analysis::templateDeclTypes);
 
         // declarations & scopes
@@ -171,7 +173,7 @@ public final class SemanticAnalysis {
         walker.register(RootNode.class, POST_VISIT, analysis::popScope);
         walker.register(BlockNode.class, POST_VISIT, analysis::popScope);
         walker.register(FunDeclarationNode.class, POST_VISIT, analysis::popScope);
-        walker.register(TempDeclarationNode.class, POST_VISIT, analysis::popScope);
+        // walker.register(TempDeclarationNode.class, POST_VISIT, analysis::popScope);
 
         // statements
         walker.register(ExpressionStatementNode.class, PRE_VISIT, node -> {
@@ -349,6 +351,65 @@ public final class SemanticAnalysis {
                                 node);
                     else
                         r.set(0, new ArrayType(supertype));
+                });
+    }
+
+    // ---------------------------------------------------------------------------------------------
+
+    private void setLiteral(SetLiteralNode node) {
+        if (node.components.size() == 0) { // {}
+            // Empty set: we need a type int to know the desired type.
+
+            final SighNode context = this.inferenceContext;
+
+            if (context instanceof VarDeclarationNode)
+                R.rule(node, "type")
+                        .using(context, "type")
+                        .by(Rule::copyFirst);
+            else if (context instanceof FunCallNode) {
+                R.rule(node, "type")
+                        .using(((FunCallNode) context).function.attr("type"), node.attr("index"))
+                        .by(r -> {
+                            FunType funType = r.get(0);
+                            r.set(0, funType.paramTypes[(int) r.get(1)]);
+                        });
+            }
+            return;
+        }
+
+        Attribute[] dependencies = node.components.stream().map(it -> it.attr("type")).toArray(Attribute[]::new);
+
+        R.rule(node, "type")
+                .using(dependencies)
+                .by(r -> {
+                    Type[] types = IntStream.range(0, dependencies.length).<Type>mapToObj(r::get)
+                            .distinct().toArray(Type[]::new);
+
+                    int i = 0;
+                    Type supertype = null;
+                    for (Type type : types) {
+                        if (type instanceof VoidType)
+                            // We report the error, but compute a type for the array from the other
+                            // elements.
+                            r.errorFor("Void-valued expression in set literal", node.components.get(i));
+                        else if (supertype == null)
+                            supertype = type;
+                        else {
+                            supertype = commonSupertype(supertype, type);
+                            if (supertype == null) {
+                                r.error("Could not find common supertype in set literal.", node);
+                                return;
+                            }
+                        }
+                        ++i;
+                    }
+
+                    if (supertype == null)
+                        r.error(
+                                "Could not find common supertype in set literal: all members have Void type.",
+                                node);
+                    else
+                        r.set(0, new SetType(supertype));
                 });
     }
 
@@ -538,24 +599,42 @@ public final class SemanticAnalysis {
     // ---------------------------------------------------------------------------------------------
 
     private void binaryArithmetic(Rule r, BinaryExpressionNode node, Type left, Type right) {
-        if (left instanceof ArrayType && right instanceof ArrayType) { // If its an Array, then check what kind of array
-                                                                       // it is
+        if (left instanceof ArrayType) { // If its an Array, then check what kind of array
+                                         // it is
             ArrayType leftArray = cast(left);
-            ArrayType rightArray = cast(right);
-            if (leftArray.componentType instanceof IntType)
-                if (rightArray.componentType instanceof IntType)
+
+            if (right instanceof IntType) {
+                IntType rightInt = cast(right);
+            } else if (right instanceof FloatType) {
+                FloatType rightInt = cast(right);
+            }
+            if (leftArray.componentType instanceof IntType) {
+                if (right instanceof ArrayType) {
+                    ArrayType rightArray = cast(right);
+                    if (rightArray.componentType instanceof IntType)
+                        r.set(0, new ArrayType(IntType.INSTANCE));
+                    else if (rightArray.componentType instanceof FloatType)
+                        r.set(0, new ArrayType(FloatType.INSTANCE));
+                    else
+                        r.error(arithmeticError(node, "Int", right), node);
+                } else if (right instanceof IntType) {
                     r.set(0, new ArrayType(IntType.INSTANCE));
-                else if (rightArray.componentType instanceof FloatType)
+                } else if (right instanceof FloatType) {
                     r.set(0, new ArrayType(FloatType.INSTANCE));
-                else
+                } else
                     r.error(arithmeticError(node, "Int", right), node);
-            else if (leftArray.componentType instanceof FloatType)
-                if (rightArray.componentType instanceof IntType || rightArray.componentType instanceof FloatType)
+            } else if (leftArray.componentType instanceof FloatType)
+                if (right instanceof ArrayType) {
+                    ArrayType rightArray = cast(right);
+                    if (rightArray.componentType instanceof IntType
+                            || rightArray.componentType instanceof FloatType)
+                        r.set(0, new ArrayType(FloatType.INSTANCE));
+                    else
+                        r.error(arithmeticError(node, "Float", right), node);
+                } else if (right instanceof IntType || right instanceof FloatType)
                     r.set(0, new ArrayType(FloatType.INSTANCE));
                 else
-                    r.error(arithmeticError(node, "Float", right), node);
-            else
-                r.error(arithmeticError(node, left, right), node);
+                    r.error(arithmeticError(node, left, right), node);
 
         } else if (left instanceof IntType)
             if (right instanceof IntType)
@@ -680,6 +759,14 @@ public final class SemanticAnalysis {
 
     // ---------------------------------------------------------------------------------------------
 
+    private void setType(SetTypeNode node) {
+        R.rule(node, "value")
+                .using(node.componentType, "value")
+                .by(r -> r.set(0, new SetType(r.get(0))));
+
+    }
+
+    // ---------------------------------------------------------------------------------------------
     private static boolean isTypeDecl(DeclarationNode decl) {
         if (decl instanceof StructDeclarationNode)
             return true;
@@ -708,6 +795,10 @@ public final class SemanticAnalysis {
         if (a instanceof ArrayType)
             return b instanceof ArrayType
                     && isAssignableTo(((ArrayType) a).componentType, ((ArrayType) b).componentType);
+
+        if (a instanceof SetType)
+            return b instanceof SetType
+                    && isAssignableTo(((SetType) a).componentType, ((SetType) b).componentType);
 
         return a instanceof NullType && b.isReference() || a.equals(b);
     }
@@ -862,8 +953,9 @@ public final class SemanticAnalysis {
     // TEMPLATES: NEW FEATURE
 
     private void templateCall(TempCallNode node) {
-        // com a lógica mudada, basta fazer como se faz na função, mas ao inves de ser
-        // só argumentos tem tmb os tipos
+
+        // ok, here we have to copy the whole subtree with new nodes, and I have no clue
+        // of how to do it
         this.inferenceContext = node;
 
         Attribute[] dependencies = new Attribute[(node.arguments.size() + node.types.size()) + 1];
@@ -959,35 +1051,82 @@ public final class SemanticAnalysis {
 
     }
 
+    /**
+     * Hey!
+     * 
+     * So the way this works without templates is that the node for "a" (indeed a
+     * ReferenceNode) will have its "type" attribute set to the value of the "type"
+     * attribute of the corresponding declaration (which in this case is the
+     * parameter declaration "a: T" of type ParameterNode).
+     * 
+     * I'm not sure the exact problem that you're facing, but I see sort of the kind
+     * of problem that it is: you essentially need the reactor to retype the whole
+     * function for each "instantiation" (i.e. each use with different type) of it.
+     * 
+     * What I would do is something along the following lines:
+     * - make sure a template function is not typed by default (you probably already
+     * do this? make sure your code compile & runs when a template function is
+     * defined but never called!) (Kinda type it but leave the values private,
+     * because it doesn't check private values)
+     * - at first, ignore the exact notion of "instantiation" (one per type) and
+     * just consider that each call is its own instantiation of the function
+     * - so for each call, create a copy of the whole function declaration (the
+     * whole subtree)- this will require you to write copy logic for all AST
+     * nodes... // Copy the tree at each instantiation and then type it there
+     * - but I think you can write it with reflection to make it much easier
+     * - you can get inspiration from the reflective hashcode/equals I just added
+     * here:
+     * https://github.com/norswap/sigh/blob/master/src/norswap/sigh/ast/SighNode.java#L66-L135
+     * (you want to implement `Cloneable` on `SighNode`, and in the `clone` method
+     * recursively call clone on all fields and assign them via reflection)
+     * - so, for each call to a template function, you create a copy for the
+     * function declaration...
+     * - but this time you set the right type for the `a: T` declaration for that
+     * particular instantiation
+     * - then you just create a rule that will type this copy of the function tree
+     * - so now all references in that copy will refer to the `a: T` that has the
+     * right type, and they will have their "type" attribute set correctly as a
+     * result
+     * 
+     * There you go, I hope it helps!
+     */
     private void templateDecl(TempDeclarationNode node) {
-        scope.declare(node.name, node);
-        scope = new Scope(node, scope);
-        R.set(node, "scope", scope); // declare a scope for template types and function parameters
 
-        Attribute[] dependencies = new Attribute[node.temp_types.size() + node.parameters.size() + 1];
-        dependencies[0] = node.returnType.attr("value");
-        forEachIndexed(node.temp_types, (i, param) -> dependencies[i + 1] = param.attr("type"));
-        forEachIndexed(node.parameters,
-                (i, param) -> dependencies[i + node.temp_types.size() + 1] = param.attr("type"));
-
-        R.rule(node, "type")
-                .using(dependencies)
-                .by(r -> {
-                    Type[] passedTpsAndParamsTypes = new Type[node.temp_types.size() + node.parameters.size()];
-                    for (int i = 0; i < passedTpsAndParamsTypes.length; ++i)
-                        passedTpsAndParamsTypes[i] = r.get(i + 1);
-                    r.set(0, new TempType(r.get(0), node.temp_types.size(), passedTpsAndParamsTypes));
-                });
-
-        R.rule()
-                .using(node.block.attr("returns"), node.returnType.attr("value"))
-                .by(r -> {
-                    boolean returns = r.get(0);
-                    Type returnType = r.get(1);
-                    if (!returns && !(returnType instanceof VoidType))
-                        r.error("Missing return in function.", node);
-                    // NOTE: The returned value presence & type is checked in returnStmt().
-                });
+        // scope.declare(node.name, node);
+        // scope = new Scope(node, scope);
+        // R.set(node, "scope", scope); // declare a scope for template types and
+        // function parameters
+        /*
+         * Attribute[] dependencies = new Attribute[node.temp_types.size() +
+         * node.parameters.size() + 1];
+         * dependencies[0] = node.returnType.attr("value");
+         * forEachIndexed(node.temp_types, (i, param) -> dependencies[i + 1] =
+         * param.attr("type"));
+         * forEachIndexed(node.parameters,
+         * (i, param) -> dependencies[i + node.temp_types.size() + 1] =
+         * param.attr("type"));
+         * 
+         * R.rule(node, "type")
+         * .using(dependencies)
+         * .by(r -> {
+         * Type[] passedTpsAndParamsTypes = new Type[node.temp_types.size() +
+         * node.parameters.size()];
+         * for (int i = 0; i < passedTpsAndParamsTypes.length; ++i)
+         * passedTpsAndParamsTypes[i] = r.get(i + 1);
+         * r.set(0, new TempType(r.get(0), node.temp_types.size(),
+         * passedTpsAndParamsTypes));
+         * });
+         * 
+         * R.rule()
+         * .using(node.block.attr("returns"), node.returnType.attr("value"))
+         * .by(r -> {
+         * boolean returns = r.get(0);
+         * Type returnType = r.get(1);
+         * if (!returns && !(returnType instanceof VoidType))
+         * r.error("Missing return in function.", node);
+         * // NOTE: The returned value presence & type is checked in returnStmt().
+         * });
+         */
     }
 
     // private void genFunDecl(GenericFunDeclarationNode node) {
